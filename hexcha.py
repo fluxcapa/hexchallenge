@@ -9,13 +9,14 @@
 import random
 from os import system
 import re
+import time
 
 # Set string values here for checking answers to questions below that require string answers
 # and cannot be mathed well
 # Then below write random loops for questions regarding the various header parts
 etypedict = {"0800": "ipv4", "0806": "arp", "8100": "vlan", "86DD": "ipv6", "88A4": "ethercat"}
 ip_proto_dict = {"01": "icmp", "06": "tcp", "11": "udp", "10": "chaos"}
-icmp_type_code = {"0000": "Echo Reply", "0300": "Network Unreachable", "0301": "Host Unreachable", "0302": "Protocol Unreachable", "0303": "Port Unreachable", "0b00": "ttl exceeded in transit", "0b01": "fragment reassembly time exceeded"}
+icmp_type_code = {"0000": "Reply", "0300": "Network Unreachable", "0301": "Host Unreachable", "0302": "Protocol Unreachable", "0303": "Port Unreachable", "0800": "Request", "0b00": "TTL expired", "0b01": "Fragment time exceeded"}
 
 def clear():
     system('clear')
@@ -41,36 +42,6 @@ def IPaddy(switch, val):
         ip = str(int(val[0:2], 16)) + "." + str(int(val[2:4], 16)) + "." + str(int(val[5:7], 16)) + "." + str(int(val[7:9], 16))
     return ip
 
-#build ethernet header
-def ethhdr():
-    H=getrandom()
-    dstmac = (H[:4] + " " + H[4:8] + " " + H[8:12])
-    srcmac = (H[12:16] + " " + H[16:20] + " " + H[20:24])
-    etype = random.choice(etypedict.items())
-    return (dstmac + " " +  srcmac + " " + etype[0], etype, dstmac, srcmac)
-
-#build ipv4 header
-def ipv4hdr():
-    ver_ihl_DSCP_ECN = '4500'
-    tot_length = str(getrandomhex(20,1500,4))
-    ident = str(getrandomhex(0,65535,4))
-    flags_frag = '0000'
-    ttl = getrandomhex(1,255,2)
-    proto = random.choice(ip_proto_dict.items())
-    cksm = str(getrandomhex(0,65535,4))
-    ips = ('c0a8 5301', 'c0a8 0043',  '0a00 011b', '441b 0b3a', '0837 1702', '1b36 9825', '2679 3c63', '5bdf c741', 'b93b 89b1')
-    src_ip = random.choice(ips)
-    dst_ip = random.choice(ips)
-    return (ver_ihl_DSCP_ECN + " " +  tot_length + " " + ident + " " + flags_frag + " " + ttl + proto[0] + " " + cksm + " " + src_ip + " " + dst_ip, tot_length, ident, ttl, proto, cksm, src_ip, dst_ip)
-
-#build ipv6 header
-#build tcp header
-#build udp header
-#build icmp header
-def icmphdr():
-    type_code = random.choice(icmp_type_code.items())
-    checksum = str(getrandomhex(0,65535,4))
-    return (type_code[0], checksum)
 
 #format packet to look like tcpdump data
 def displaypacket(packetdata):
@@ -83,24 +54,96 @@ def displaypacket(packetdata):
          i += 1
     return dumpformat
 
+#build ethernet header
+def ethhdr():
+    H=getrandom()
+    dstmac = (H[:4] + " " + H[4:8] + " " + H[8:12])
+    srcmac = (H[12:16] + " " + H[16:20] + " " + H[20:24])
+    etype = random.choice(etypedict.items())
+    return (dstmac + " " +  srcmac + " " + etype[0], etype, dstmac, srcmac)
+
+#build ipv4 header
+def ipv4hdr(prototype = None):
+    ver_ihl_DSCP_ECN = '4500'
+    tot_length = str(getrandomhex(20,1500,4))
+    ident = str(getrandomhex(0,65535,4))
+    flags_frag = '0000'
+    ttl = getrandomhex(60,128,2)
+    proto_dict = random.choice(ip_proto_dict.items())
+    proto = proto_dict[0]
+    cksm = str(getrandomhex(0,65535,4))
+    ips = ('c0a8 5301', 'c0a8 0043',  '0a00 011b', '441b 0b3a', '0837 1702', '1b36 9825', '2679 3c63', '5bdf c741', 'b93b 89b1')
+    src_ip = random.choice(ips)
+    dst_ip = random.choice(ips)
+    if prototype is not None:
+        if prototype == "icmp":
+            proto = '01'
+            print(proto)
+        elif prototype == "tcp":
+            proto = '06'
+    return (ver_ihl_DSCP_ECN + " " +  tot_length + " " + ident + " " + flags_frag + " " + ttl + proto + " " + cksm + " " + src_ip + " " + dst_ip, tot_length, ident, ttl, proto, cksm, src_ip, dst_ip)
+
+#build ipv6 header
+#build tcp header
+
+def tcphdr():
+    src_port = str(getrandomhex(0,65500,4))
+    dst_port = str(getrandomhex(0,65500,4))
+    sequence_nbr = (str(getrandomhex(0,65500,4)) + " " + str(getrandomhex(0,65500,4)))
+    ack_nbr = (str(getrandomhex(0,65500,4)) + " " + str(getrandomhex(0,65500,4)))
+    flags_dict = {"5011": "AF","5002": "S","5014": "AR", "5029": "UPF", "5012": "AS"}
+    hdr_lgth_flags = random.choice(flags_dict.items())
+    window_size = "faf0"
+    cksm = "7b0f"
+    urgent_pointer = "0000"
+    return (src_port + " " + dst_port + " " + sequence_nbr + " " + ack_nbr + " " + hdr_lgth_flags[0] + " " + window_size + " " + cksm + " " + urgent_pointer, hdr_lgth_flags)
+
+def tcptest():
+    score = 0
+    while score < 10:
+        clear()
+        tcpvar = tcphdr()
+        packetdata = (ethhdr()[0] + " " + ipv4hdr("tcp")[0] + " " + str(tcpvar[0]))
+        correctflags = str(tcpvar[1][1])
+        print displaypacket(packetdata)
+        answer = raw_input('\nCurrent Score: ' + str(score) + '\nWhich TCP flags are set in this packet? example: for ACK and SYN enter AS\n') 
+        if answer.lower() == correctflags.lower():
+            print("correct")
+            time.sleep( .5 )
+            score += 1
+        else:
+            raw_input("incorrect, 0x" + str(tcpvar[1][0])[2:4] + " = " + str(tcpvar[1][1]))
+            tcptest()
+        if score > 9:
+            return "passed"
+
+#build udp header
+#build icmp header
+def icmphdr():
+    type_code = random.choice(icmp_type_code.items())
+    checksum = str(getrandomhex(0,65535,4))
+    return (type_code[0], checksum)
+
+
 def icmptest():
     score = 0
-    
+    randchoice = 0 
     while score < 10:
         clear()
         icmpvar = icmphdr()
         correct_type_hex = icmpvar[0][:2]
         correct_code_hex = icmpvar[0][2:4]
-        packetdata = (ethhdr()[0] + " " + ipv4hdr()[0] + " " + str(icmpvar[0]) + " " + str(icmpvar[1]))
+        packetdata = (ethhdr()[0] + " " + ipv4hdr("icmp")[0] + " " + str(icmpvar[0]) + " " + str(icmpvar[1]))
         print displaypacket(packetdata)
-        answer = raw_input('\nCurrent Score: ' + str(score) + '\nWhat is the type of the ICMP header, in hex? ')
-        feedback = ",'0x" + correct_type_hex + "' is the type"
-        if answer.lower() == correct_type_hex:
+        correctstr = str(icmp_type_code[icmpvar[0]]).lower()
+        answer = raw_input('\nCurrent Score: ' + str(score) + '\nIs this a "request", "reply", "network unreachable", "host unreachable", "procotol unreachable", "port unreachable", "TTL expired" or "fragment time exceeded" message? ')
+        if answer.lower() == correctstr.strip():  # fix blank line as correct!
+            print("correct")
+            time.sleep( .5 )
             score += 1
         else:
-            print("Wrong" + feedback)
-            raw_input("press enter to continue...")
-            score = 0
+            raw_input("Wrong, " + icmpvar[0] + " = " + correctstr)
+            icmptest()
 
 #EtherType challenge - currently displays only the ethhdr
 def ethtest():
@@ -215,20 +258,25 @@ def ipv4test():
 
 #game menu
 print("To start playing, press enter. Or select an option to jump ahead.")
-game_select = raw_input('\n<enter> to start\n"1" for ethernet\n"2" for IPv4\n"3" for ICMP\n')
+game_select = raw_input('\n<enter> to start\n"1" for ethernet\n"2" for IPv4\n"3" for ICMP\n"4" for TCP\n')
 if game_select == "":
     if ethtest() == "passed":
         raw_input("Great work, now for IPv4 headers...")
         if ipv4test() == "passed":
             raw_input("Great work, now for ICMP headers...")
             if icmptest() == "passed":
-                raw_input("Great work, you win for now...")
+                raw_input("Great work, on to TCP headers...")
+                if tcptest() == "passed":
+                    raw_input("Great work, you win for now...")
 if game_select == "1":
     ethtest()
-    print("Nice work, you win")
+    print("Nice work, you win!")
 if game_select == "2":
     ipv4test()
-    print("Nice work, you win")
+    print("Nice work, you win!")
 if game_select == "3":
     icmptest()
-    print("Nice work, you win")
+    print("Nice work, you win!")
+if game_select == "4":
+    tcptest()
+    print("Nice work, you win!")
