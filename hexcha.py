@@ -71,6 +71,7 @@ def ipv4hdr(prototype = None):
     ttl = getrandomhex(60,128,2)
     proto_dict = random.choice(ip_proto_dict.items())
     proto = proto_dict[0]
+    proto_ascii = proto_dict[1]
     cksm = str(getrandomhex(0,65535,4))
     ips = ('c0a8 5301', 'c0a8 0043',  '0a00 011b', '441b 0b3a', '0837 1702', '1b36 9825', '2679 3c63', '5bdf c741', 'b93b 89b1')
     src_ip = random.choice(ips)
@@ -81,7 +82,7 @@ def ipv4hdr(prototype = None):
             print(proto)
         elif prototype == "tcp":
             proto = '06'
-    return (ver_ihl_DSCP_ECN + " " +  tot_length + " " + ident + " " + flags_frag + " " + ttl + proto + " " + cksm + " " + src_ip + " " + dst_ip, tot_length, ident, ttl, proto, cksm, src_ip, dst_ip)
+    return (ver_ihl_DSCP_ECN + " " +  tot_length + " " + ident + " " + flags_frag + " " + ttl + proto + " " + cksm + " " + src_ip + " " + dst_ip, tot_length, ident, ttl, proto, cksm, src_ip, dst_ip, proto_ascii)
 
 #build ipv6 header
 #build tcp header
@@ -192,14 +193,14 @@ def ipv4test():
 
         if randchoice == 1:
             #IP Protocol Question
-            correct_proto_hex = ipv4_hdr[4][0]
-            correct_proto_str = ipv4_hdr[4][1]
+            correct_proto_hex = ipv4_hdr[4]
+            correct_proto_str = ipv4_hdr[8]
             answer = raw_input('Current Score: ' + str(score) + '\nWhat is the IP protocol of this packet header? ')
             feedback = ",'0x" + correct_proto_hex + "' = " + str(correct_proto_str)
             if clean(answer) == correct_proto_str:
                 score += 1
             else:
-                print("Wrong" + feedback)
+                print("incorrect" + feedback)
                 raw_input("press enter to continue...")
                 ipv4test()
 
@@ -212,7 +213,7 @@ def ipv4test():
             if clean(answer) == str(correct_ttl_dec):
                 score += 1
             else:
-                print("Wrong" + feedback)
+                print("incorrect" + feedback)
                 raw_input("press enter to continue...")
                 ipv4test()
 
@@ -224,7 +225,7 @@ def ipv4test():
             if clean(answer) == correct_cksm_hex:
                 score += 1
             else:
-                print("Wrong" + feedback)
+                print("incorrect" + feedback)
                 raw_input("press enter to continue...")
                 ipv4test()
 
